@@ -1,5 +1,5 @@
-from lambda.embeddings.embed import embed_text
-from lambda.embeddings.pinecone_client import query_embedding
+from embeddings.embed import embed_text
+from embeddings.pinecone_client import query_embedding
 
 def retrieve_documents(query):
     query_vector = embed_text(query)

@@ -31,3 +31,4 @@ dist/
 # Credentials / secrets
 .env
 *.pem
+samconfig.toml

@@ -1,7 +1,7 @@
-from lambda.rag.retrieve import retrieve_documents
-from lambda.rag.prompt import build_prompt
-from lambda.llm.bedrock_client import call_llm
-from lambda.utils.logger import logger
+from rag.retrieve import retrieve_documents
+from rag.prompt import build_prompt
+from llm.bedrock_client import call_llm
+from utils.logger import logger
 
 def lambda_handler(event, context):
     logger.info(event)

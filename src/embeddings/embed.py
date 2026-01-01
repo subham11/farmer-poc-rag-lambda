@@ -1,5 +1,5 @@
 import boto3
-from lambda.config import AWS_REGION, EMBED_MODEL
+from config import AWS_REGION, EMBED_MODEL
 
 bedrock = boto3.client("bedrock-runtime", region_name=AWS_REGION)
 

@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Farmer RAG System Using AWS Lambda + API Gateway
+
+Resources:
+  FarmerRAGLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda.handler.lambda_handler
+      Runtime: python3.10
+      MemorySize: 1024
+      Timeout: 30
+      CodeUri: lambda/
+      Environment:
+        Variables:
+          AWS_REGION: ap-south-1
+          EMBED_MODEL: amazon.titan-embed-text-v2
+          LLM_MODEL: anthropic.claude-3-haiku-20240307-v1:0
+          PINECONE_API_KEY: REPLACE_ME
+          PINECONE_INDEX: farmer-rag-index
+      Policies:
+        - AmazonS3ReadOnlyAccess
+        - AmazonBedrockReadOnly
+      Events:
+        ApiRequest:
+          Type: Api
+          Properties:
+            Path: /ask
+            Method: GET

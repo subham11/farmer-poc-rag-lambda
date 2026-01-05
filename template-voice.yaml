@@ -1,0 +1,353 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Farmer RAG System with Voice AI (ASR + TTS) Support
+
+Parameters:
+  PineconeApiKey:
+    Type: String
+    Description: Pinecone API Key
+    NoEcho: true
+  
+  OpenAIApiKey:
+    Type: String
+    Description: OpenAI API Key (for Whisper ASR and TTS - Odia language)
+    NoEcho: true
+    Default: ""
+  
+  MaxRequestsPerHour:
+    Type: Number
+    Description: Maximum ASR/TTS requests per session per hour
+    Default: 5
+    MinValue: 1
+    MaxValue: 20
+
+Globals:
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS,PUT,DELETE'"
+      AllowHeaders: "'Content-Type,X-Session-Id,X-Language,Authorization'"
+      AllowOrigin: "'*'"
+      MaxAge: "'86400'"
+  
+  Function:
+    Runtime: python3.11
+    MemorySize: 1024
+    Timeout: 30
+    Environment:
+      Variables:
+        AWS_REGION_NAME: !Ref AWS::Region
+        AUDIO_BUCKET: !Ref VoiceAudioBucket
+        RATE_LIMIT_TABLE: !Ref RateLimitTable
+        MAX_REQUESTS_PER_HOUR: !Ref MaxRequestsPerHour
+        OPENAI_API_KEY: !Ref OpenAIApiKey
+        PINECONE_API_KEY: !Ref PineconeApiKey
+        PINECONE_INDEX: farmer-rag-index
+        EMBED_MODEL: amazon.titan-embed-text-v2:0
+        LLM_MODEL: anthropic.claude-3-haiku-20240307-v1:0
+
+Resources:
+  # =============================================================================
+  # EXISTING RAG LAMBDA (Unchanged)
+  # =============================================================================
+  FarmerRAGLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: src/
+      Description: RAG pipeline for farmer queries
+      Policies:
+        - AmazonS3ReadOnlyAccess
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: "*"
+      Events:
+        ApiRequest:
+          Type: Api
+          Properties:
+            Path: /ask
+            Method: POST
+        ApiRequestGet:
+          Type: Api
+          Properties:
+            Path: /ask
+            Method: GET
+
+  # =============================================================================
+  # SWAGGER UI & OPENAPI SPECIFICATION
+  # =============================================================================
+  SwaggerUILambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: swagger_handler.swagger_ui_handler
+      CodeUri: src/
+      Description: Serve Swagger UI for API documentation and testing
+      Events:
+        SwaggerUI:
+          Type: Api
+          Properties:
+            Path: /
+            Method: GET
+        SwaggerUICors:
+          Type: Api
+          Properties:
+            Path: /
+            Method: OPTIONS
+        SwaggerUIIndex:
+          Type: Api
+          Properties:
+            Path: /swagger-ui
+            Method: GET
+        SwaggerUIIndexCors:
+          Type: Api
+          Properties:
+            Path: /swagger-ui
+            Method: OPTIONS
+
+  OpenAPISpecLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: swagger_handler.openapi_spec_handler
+      CodeUri: src/
+      Description: Serve OpenAPI specification for Swagger UI
+      Events:
+        OpenAPISpec:
+          Type: Api
+          Properties:
+            Path: /openapi.json
+            Method: GET
+        OpenAPISpecCors:
+          Type: Api
+          Properties:
+            Path: /openapi.json
+            Method: OPTIONS
+
+  # =============================================================================
+  # VOICE AI - S3 BUCKET FOR AUDIO FILES
+  # =============================================================================
+  VoiceAudioBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "farmer-voice-audio-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          # Auto-delete uploaded audio after 1 hour
+          - Id: CleanupUploads
+            Status: Enabled
+            Prefix: uploads/
+            ExpirationInDays: 1
+          # Auto-delete response audio after 1 day
+          - Id: CleanupResponses
+            Status: Enabled
+            Prefix: responses/
+            ExpirationInDays: 1
+          # Auto-delete temp files after 1 hour
+          - Id: CleanupTemp
+            Status: Enabled
+            Prefix: temp/
+            ExpirationInDays: 1
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedOrigins:
+              - "*"
+            MaxAge: 3600
+
+  # =============================================================================
+  # VOICE AI - DYNAMODB FOR RATE LIMITING
+  # =============================================================================
+  RateLimitTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "farmer-voice-rate-limits-${AWS::StackName}"
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # =============================================================================
+  # VOICE AI - LAMBDA FUNCTIONS
+  # =============================================================================
+  
+  # Upload URL Generator Lambda
+  VoiceUploadUrlLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: voice.handlers.upload_url_handler
+      CodeUri: src/
+      Description: Generate pre-signed URLs for audio upload
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref VoiceAudioBucket
+      Events:
+        ApiRequest:
+          Type: Api
+          Properties:
+            Path: /voice/upload-url
+            Method: GET
+
+  # ASR (Speech-to-Text) Lambda
+  VoiceASRLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: voice.handlers.asr_handler
+      CodeUri: src/
+      Timeout: 60
+      Description: Speech-to-text using Transcribe (EN/HI) or Whisper (Odia)
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref VoiceAudioBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - transcribe:StartTranscriptionJob
+                - transcribe:GetTranscriptionJob
+                - transcribe:DeleteTranscriptionJob
+              Resource: "*"
+      Events:
+        ApiRequest:
+          Type: Api
+          Properties:
+            Path: /voice/asr
+            Method: POST
+
+  # TTS (Text-to-Speech) Lambda
+  VoiceTTSLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: voice.handlers.tts_handler
+      CodeUri: src/
+      Timeout: 60
+      Description: Text-to-speech using Polly (EN/HI) or OpenAI TTS (Odia)
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref VoiceAudioBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - polly:SynthesizeSpeech
+              Resource: "*"
+      Events:
+        ApiRequest:
+          Type: Api
+          Properties:
+            Path: /voice/tts
+            Method: POST
+
+  # Full Voice Pipeline Lambda (ASR → RAG → TTS)
+  VoicePipelineLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: voice.handlers.voice_pipeline_handler
+      CodeUri: src/
+      Timeout: 90
+      MemorySize: 2048
+      Description: Full voice pipeline - Speech to Text to RAG to Speech
+      Environment:
+        Variables:
+          # RAG_API_URL will be set after deployment or use internal call
+          RAG_API_URL: ""
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref VoiceAudioBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - transcribe:StartTranscriptionJob
+                - transcribe:GetTranscriptionJob
+                - transcribe:DeleteTranscriptionJob
+                - polly:SynthesizeSpeech
+                - bedrock:InvokeModel
+              Resource: "*"
+      Events:
+        ApiRequest:
+          Type: Api
+          Properties:
+            Path: /voice/ask
+            Method: POST
+
+  # Rate Limit Status Lambda
+  VoiceRateLimitStatusLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: voice.handlers.rate_limit_status_handler
+      CodeUri: src/
+      Description: Get current rate limit status
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref RateLimitTable
+      Events:
+        ApiRequest:
+          Type: Api
+          Properties:
+            Path: /voice/rate-limit-status
+            Method: GET
+
+Outputs:
+  # Swagger & API Documentation
+  SwaggerUIEndpoint:
+    Description: "Swagger UI for API testing and documentation"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  
+  OpenAPISpecEndpoint:
+    Description: "OpenAPI specification (for Swagger UI)"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/openapi.json"
+  
+  # Existing RAG API
+  RAGApiEndpoint:
+    Description: "RAG API endpoint (unchanged)"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/ask"
+  
+  # Voice API Endpoints
+  VoiceUploadUrlEndpoint:
+    Description: "Get pre-signed URL for audio upload"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/voice/upload-url"
+  
+  VoiceASREndpoint:
+    Description: "Speech-to-text endpoint"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/voice/asr"
+  
+  VoiceTTSEndpoint:
+    Description: "Text-to-speech endpoint"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/voice/tts"
+  
+  VoicePipelineEndpoint:
+    Description: "Full voice pipeline (ASR → RAG → TTS)"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/voice/ask"
+  
+  VoiceRateLimitStatusEndpoint:
+    Description: "Rate limit status endpoint"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/voice/rate-limit-status"
+  
+  # Resources
+  AudioBucketName:
+    Description: "S3 bucket for audio files"
+    Value: !Ref VoiceAudioBucket
+  
+  RateLimitTableName:
+    Description: "DynamoDB table for rate limiting"
+    Value: !Ref RateLimitTable

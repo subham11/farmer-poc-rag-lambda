@@ -1,0 +1,199 @@
+{
+  "info": {
+    "_postman_id": "farmer-rag-voice-api",
+    "name": "Farmer RAG Voice API",
+    "description": "Farmer RAG System with Voice AI (ASR + TTS) Support",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "RAG - Text Q&A",
+      "item": [
+        {
+          "name": "Ask Question (GET)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ask?query=What is the best time to plant rice?",
+              "host": ["{{baseUrl}}"],
+              "path": ["ask"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "What is the best time to plant rice?"
+                }
+              ]
+            },
+            "description": "Ask a question using query parameter"
+          },
+          "response": []
+        },
+        {
+          "name": "Ask Question (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"question\": \"How do I prevent crop diseases?\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ask",
+              "host": ["{{baseUrl}}"],
+              "path": ["ask"]
+            },
+            "description": "Ask a question using JSON body"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Voice - Audio Upload",
+      "item": [
+        {
+          "name": "Get Upload URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Language",
+                "value": "en"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"filename\": \"farmer_query.wav\", \"content_type\": \"audio/wav\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/voice/upload-url",
+              "host": ["{{baseUrl}}"],
+              "path": ["voice", "upload-url"]
+            },
+            "description": "Get a pre-signed S3 URL for uploading audio files"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Voice - Speech-to-Text (ASR)",
+      "item": [
+        {
+          "name": "Convert Audio to Text",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Language",
+                "value": "en"
+              },
+              {
+                "key": "X-Session-Id",
+                "value": "{{sessionId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"s3_key\": \"audio/farmer_query_20240102_120000.wav\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/voice/asr",
+              "host": ["{{baseUrl}}"],
+              "path": ["voice", "asr"]
+            },
+            "description": "Transcribe audio file to text using ASR"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Voice - Text-to-Speech (TTS)",
+      "item": [
+        {
+          "name": "Convert Text to Audio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Language",
+                "value": "en"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"text\": \"The best time to plant rice is during the monsoon season.\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/voice/tts",
+              "host": ["{{baseUrl}}"],
+              "path": ["voice", "tts"]
+            },
+            "description": "Convert text to speech audio"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check API health status"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://YOUR_API_ID.execute-api.ap-south-1.amazonaws.com/Prod",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "farmer-session-12345",
+      "type": "string"
+    }
+  ]
+}

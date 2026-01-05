@@ -1,268 +1,679 @@
-# Farmer RAG Lambda (AWS Bedrock + Pinecone)
+# Farmer RAG Lambda - Complete Voice & Text AI Backend
 
-This repository is a **boilerplate** for a small end‑to‑end GenAI POC:
+[![AWS SAM](https://img.shields.io/badge/AWS%20SAM-1.0-orange)](https://aws.amazon.com/serverless/sam/)
+[![Python](https://img.shields.io/badge/Python-3.11-blue)](https://www.python.org/)
+[![Swagger](https://img.shields.io/badge/Swagger-UI-brightgreen)](https://swagger.io/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-- Dataset of farmers / soil / weather / crop recommendations
-- Embeddings generated using **AWS Bedrock** (Titan Embeddings)
-- Semantic search over vectors stored in **Pinecone**
-- RAG (Retrieval‑Augmented Generation) to answer questions
-- Served as a **serverless API** using **AWS Lambda + API Gateway** via **AWS SAM**
+A complete **serverless AI backend** for farmer assistance with **voice and text capabilities**, featuring Retrieval-Augmented Generation (RAG), speech-to-text, text-to-speech, and interactive API documentation.
 
----
+## 🌟 Key Features
 
-## 🗂 Project Structure
+- **🤖 AI-Powered Q&A**: RAG system using AWS Bedrock (Claude 3) + Pinecone vector search
+- **🎤 Voice Processing**: Full voice pipeline with ASR (speech-to-text) and TTS (text-to-speech)
+- **🌐 Multi-Language**: English, Hindi, and Odia language support
+- **📚 Interactive Documentation**: Complete Swagger UI for API testing and exploration
+- **🔧 One-Click Deployment**: Automated AWS deployment with comprehensive testing
+- **🧪 Production Ready**: CORS configured, error handling, health checks, rate limiting
+- **📱 Frontend Ready**: CORS-enabled for seamless frontend integration
 
-```text
-farmer-rag-lambda/
-├── lambda/
-│   ├── handler.py                # Lambda entrypoint
-│   ├── config.py                 # Environment/config access
-│   ├── embeddings/
-│   │   ├── embed.py              # Bedrock embedding helper
-│   │   └── pinecone_client.py    # Pinecone init + upsert + query
-│   ├── ingestion/
-│   │   ├── load_dataset.py       # CSV loader (local usage)
-│   │   └── process_csv.py        # Convert rows → text docs
-│   ├── rag/
-│   │   ├── retrieve.py           # RAG retrieval using embeddings
-│   │   └── prompt.py             # Prompt builder for LLM
-│   ├── llm/
-│   │   └── bedrock_client.py     # Bedrock LLM caller
-│   ├── utils/
-│   │   └── logger.py             # Basic logging
-│   └── requirements.txt          # Lambda dependencies
-├── data/
-│   └── farmer_dataset.csv        # Placeholder dataset (replace with real one)
-└── template.yaml                 # AWS SAM template for Lambda + API Gateway
+## 🚀 Quick Start (5 minutes)
+
+### Prerequisites
+```bash
+# Verify AWS setup
+aws sts get-caller-identity
+sam --version
+
+# Navigate to backend
+cd /Volumes/SatyBkup/projects/FARMER-POC/farmer-poc-rag-lambda
 ```
 
----
-
-## ✅ Prerequisites
-
-- Python **3.10+**
-- AWS account with:
-  - **Bedrock** access enabled in your region (e.g. `ap-south-1` where available / or update)
-  - Permissions for:
-    - `bedrock:InvokeModel`
-    - `bedrock:InvokeModelWithResponseStream`
-    - S3 read (if you later use S3)
-- A **Pinecone** account + API key
-- **AWS SAM CLI** installed (`sam --version`)
-- AWS credentials configured locally (`aws configure`)
-
----
-
-## 🧾 Environment Variables (used by Lambda)
-
-These are defined in `template.yaml` as Lambda environment variables:
-
-- `AWS_REGION` – e.g. `ap-south-1`
-- `EMBED_MODEL` – e.g. `amazon.titan-embed-text-v2`
-- `LLM_MODEL` – e.g. `anthropic.claude-3-haiku-20240307-v1:0`
-- `PINECONE_API_KEY` – your Pinecone API key
-- `PINECONE_INDEX` – name of your Pinecone index (e.g. `farmer-rag-index`)
-
----
-
-## 🧑‍💻 Local Setup (Repo Level)
-
-1. **Create a project folder and unzip**
-
-   ```bash
-   mkdir farmer-rag-lambda
-   cd farmer-rag-lambda
-   # copy / unzip the provided ZIP contents here
-   ```
-
-2. **(Optional) Create a virtual environment**
-
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   ```
-
-3. **Install Lambda dependencies (for local testing)**
-
-   ```bash
-   cd lambda
-   pip install -r requirements.txt
-   cd ..
-   ```
-
-4. **Replace the placeholder dataset**
-
-   - Open `data/farmer_dataset.csv`
-   - Replace the dummy content with your real 100‑record dataset.
-
----
-
-## 🧱 Pinecone Setup
-
-1. Sign in to [Pinecone](https://www.pinecone.io/) and create a project.
-2. Create an **index**:
-   - Name: `farmer-rag-index` (or match `PINECONE_INDEX`)
-   - Metric: `cosine`
-   - Dimension: must match the Titan embedding dimension (e.g., 1536 or as per model).
-3. Copy your **Pinecone API key** and keep it handy for:
-   - Local `.env` (if you create one)
-   - Lambda environment variable `PINECONE_API_KEY`.
-
-> Note: This boilerplate assumes the embeddings dimension matches your index dimension. Adjust as needed based on the actual model specs.
-
----
-
-## 🔁 (Optional) One‑time Ingestion Script
-
-Right now this boilerplate focuses on **query‑time RAG**.
-
-For a proper pipeline you typically want:
-
-- A **local or Lambda script** that:
-  - Loads `data/farmer_dataset.csv`
-  - Converts each row → text using `process_csv.row_to_text`
-  - Calls `embed_text(text)` to get vector
-  - Writes vectors to Pinecone via `store_embedding`
-
-This ingestion step can be implemented as a separate script:
-
-```python
-# example skeleton (not included as a Lambda handler yet)
-
-from ingestion.load_dataset import load_local_dataset
-from ingestion.process_csv import prepare_documents
-from embeddings.embed import embed_text
-from embeddings.pinecone_client import store_embedding
-
-def run_ingestion():
-    df = load_local_dataset("data/farmer_dataset.csv")
-    docs = prepare_documents(df)
-    for doc in docs:
-        vec = embed_text(doc["text"])
-        store_embedding(doc["id"], vec, doc["metadata"])
-
-if __name__ == "__main__":
-    run_ingestion()
+### Deploy to AWS
+```bash
+./deploy.sh
+# When prompted: Enter Pinecone API key, confirm deployment
 ```
 
-You can run this **once** from your local machine (with valid AWS + Bedrock + Pinecone credentials) to populate the index.
+### Test Everything
+```bash
+# Extract API URL
+API_URL=$(cat api_endpoint.txt | grep "API Endpoint:" | cut -d' ' -f3)
+
+# Run comprehensive tests (should pass all 28 tests)
+./test_endpoints.sh "$API_URL"
+```
+
+### Access Swagger UI
+```bash
+# Open in browser
+cat api_endpoint.txt | grep "Swagger"
+# Example: https://abc123.execute-api.ap-south-1.amazonaws.com/Prod/
+```
+
+## 📋 Table of Contents
+
+- [Architecture Overview](#-architecture-overview)
+- [API Endpoints](#-api-endpoints)
+- [Deployment Guide](#-deployment-guide)
+- [Testing](#-testing)
+- [Local Development](#-local-development)
+- [Configuration](#-configuration)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
 
 ---
 
-## ☁️ Deploying to AWS with SAM
+## 🏗️ Architecture Overview
 
-1. **Validate SAM template**
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │────│   API Gateway   │────│   AWS Lambda    │
+│   (React/Next)  │    │   (CORS)        │    │   Functions     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                                        │
+                       ┌────────────────────────────────┼────────────────────────────────┐
+                       │                                │                                │
+            ┌──────────▼──────────┐          ┌──────────▼──────────┐          ┌──────────▼──────────┐
+            │   AWS Bedrock      │          │     Pinecone        │          │     AWS S3         │
+            │   (LLM + Embed)    │          │   (Vector DB)       │          │   (Audio Storage)  │
+            └───────────────────┘          └─────────────────────┘          └─────────────────────┘
+                       │                                │                                │
+            ┌──────────▼──────────┐          ┌──────────▼──────────┐          ┌──────────▼──────────┐
+            │   AWS Transcribe   │          │   AWS Polly         │          │     OpenAI         │
+            │   (Speech-to-Text) │          │   (Text-to-Speech)   │          │   (Odia Support)   │
+            └───────────────────┘          └─────────────────────┘          └─────────────────────┘
+```
 
-   ```bash
-   sam validate
-   ```
+### Core Components
 
-2. **Build the Lambda package**
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **API Gateway** | AWS | REST API routing with CORS |
+| **Lambda Functions** | Python 3.11 | Serverless compute (7 functions) |
+| **Bedrock** | AWS | Claude 3 LLM + Titan embeddings |
+| **Pinecone** | Vector DB | Semantic search over farmer data |
+| **S3** | AWS | Audio file storage with lifecycle |
+| **DynamoDB** | AWS | Rate limiting with TTL |
+| **Transcribe/Polly** | AWS | Voice processing (EN/HI) |
+| **OpenAI** | External | Odia language support |
 
-   ```bash
-   sam build
-   ```
+### Data Flow
 
-3. **Deploy (guided)**
-
-   ```bash
-   sam deploy --guided
-   ```
-
-   During the guided deploy, SAM will ask you for:
-   - Stack name (e.g. `farmer-rag-stack`)
-   - AWS region
-   - Whether to save the configuration for future deploys
-   - You can then override environment variables in the console/parameters if desired.
-
-4. After deploy, SAM will output an **API Gateway URL**, something like:
-
-   ```text
-   https://xxxxxx.execute-api.ap-south-1.amazonaws.com/Prod/ask
-   ```
-
-   You can query it with:
-
-   ```bash
-   curl "https://xxxxxx.execute-api.ap-south-1.amazonaws.com/Prod/ask?query=best+crop+for+loamy+soil+in+Odisha"
-   ```
-
----
-
-## 🔍 How the Runtime Flow Works
-
-1. User hits: `GET /ask?query=...`
-2. API Gateway triggers **Lambda** (`handler.lambda_handler`).
-3. Lambda:
-   - Reads `query` from `event["queryStringParameters"]["query"]`
-   - Calls `retrieve_documents(query)`:
-     - Embeds query with Bedrock (Titan)
-     - Queries Pinecone for top‑K similar records
-   - Builds a RAG prompt from returned contexts.
-   - Calls `call_llm(prompt)` using Bedrock (Claude, Llama, etc.)
-   - Returns LLM answer as HTTP response.
+1. **Text Q&A**: Query → Embed → Search Pinecone → RAG Prompt → Claude → Response
+2. **Voice Input**: Audio → Transcribe → Text Query → RAG → Polly → Audio Response
+3. **Voice Output**: Text Response → Polly/OpenAI → Audio URL
 
 ---
 
-## ✅ TODO – Step‑by‑Step Checklist
+## 📡 API Endpoints
 
-Use this as your practical TODO list:
+### Base URL
+```
+https://{api-id}.execute-api.ap-south-1.amazonaws.com/Prod
+```
 
-1. [ ] Create AWS account & configure `aws configure` locally  
-2. [ ] Enable **Bedrock** in your selected region  
-3. [ ] Create **Pinecone** account and index (`farmer-rag-index`)  
-4. [ ] Unzip this boilerplate into a local folder / GitHub repo  
-5. [ ] Replace `data/farmer_dataset.csv` with your 100‑record dataset  
-6. [ ] Implement and run a one‑time **ingestion script** to:
-    - [ ] Load CSV  
-    - [ ] Convert rows → text  
-    - [ ] Generate embeddings via Bedrock  
-    - [ ] Upsert vectors into Pinecone  
-7. [ ] Update `template.yaml` environment variables:
-    - [ ] `AWS_REGION`  
-    - [ ] `EMBED_MODEL`  
-    - [ ] `LLM_MODEL`  
-    - [ ] `PINECONE_API_KEY`  
-    - [ ] `PINECONE_INDEX`  
-8. [ ] Run `sam build`  
-9. [ ] Run `sam deploy --guided`  
-10. [ ] Test your endpoint via `curl` / Postman / browser  
-11. [ ] (Optional) Add API key / Cognito to secure the endpoint  
-12. [ ] (Optional) Add CloudWatch dashboards for latency & errors  
-13. [ ] (Optional) Add a simple web/mobile UI on top of the `/ask` endpoint  
+### Core Endpoints
 
----
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| `GET` | `/` | **Swagger UI** - Interactive API documentation | ✅ |
+| `GET` | `/openapi.json` | OpenAPI 3.0 specification | ✅ |
+| `GET` | `/health` | API health status | ✅ |
+| `GET` | `/ask?query=...` | Text Q&A with query parameter | ✅ |
+| `POST` | `/ask` | Text Q&A with JSON body | ✅ |
+| `POST` | `/voice/upload-url` | Get S3 upload URL for audio | ✅ |
+| `POST` | `/voice/asr` | Speech-to-Text conversion | ✅ |
+| `POST` | `/voice/tts` | Text-to-Speech conversion | ✅ |
+| `POST` | `/voice/ask` | Full voice pipeline (ASR → RAG → TTS) | ✅ |
 
-## 🧪 Testing Locally (Basic)
+### Request/Response Examples
 
-You can do basic unit tests locally by simulating the Lambda event:
+#### Text Q&A
+```bash
+# GET request
+curl "https://api.example.com/ask?query=What is the best fertilizer for rice?"
 
-```python
-from lambda.handler import lambda_handler
+# POST request
+curl -X POST "https://api.example.com/ask" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "How do I prevent crop diseases?"}'
 
-event = {
-    "queryStringParameters": {
-        "query": "best crop for loamy soil in Odisha"
-    }
+# Response
+{
+  "question": "How do I prevent crop diseases?",
+  "answer": "To prevent crop diseases effectively: 1. Crop rotation... 2. Seed selection...",
+  "sources": ["farmer_dataset.csv (Section: Disease Management)"],
+  "language": "en",
+  "processing_time": 1.89
 }
-response = lambda_handler(event, None)
-print(response)
 ```
 
-You can also explore `sam local invoke` or `sam local start-api` for more advanced local testing.
+#### Voice Processing
+```bash
+# Get upload URL
+curl -X POST "https://api.example.com/voice/upload-url" \
+  -H "Content-Type: application/json" \
+  -d '{"filename": "question.wav", "content_type": "audio/wav"}'
+
+# Speech-to-Text
+curl -X POST "https://api.example.com/voice/asr" \
+  -H "Content-Type: application/json" \
+  -H "X-Language: en" \
+  -d '{"s3_key": "audio/question.wav"}'
+
+# Text-to-Speech
+curl -X POST "https://api.example.com/voice/tts" \
+  -H "Content-Type: application/json" \
+  -H "X-Language: hi" \
+  -d '{"text": "नमस्ते, मैं आपकी मदद कर सकता हूं"}'
+```
+
+### Language Support
+
+| Language | Code | ASR | TTS | Notes |
+|----------|------|-----|-----|-------|
+| English | `en` | AWS Transcribe | AWS Polly | Primary language |
+| Hindi | `hi` | AWS Transcribe | AWS Polly | Indian language support |
+| Odia | `od` | OpenAI Whisper | OpenAI TTS | Regional language |
+
+### Error Responses
+
+```json
+// 400 Bad Request
+{
+  "error": "Bad Request",
+  "message": "Missing required parameter: question",
+  "details": "Please provide either 'question' in POST body or 'query' as URL parameter"
+}
+
+// 429 Too Many Requests
+{
+  "error": "Too Many Requests",
+  "message": "Rate limit exceeded",
+  "details": "Maximum 10 requests per minute per session",
+  "retry_after": 45
+}
+
+// 500 Internal Server Error
+{
+  "error": "Internal Server Error",
+  "message": "An unexpected error occurred",
+  "request_id": "abc-123-def-456"
+}
+```
 
 ---
 
-## 📝 Notes
+## 🚀 Deployment Guide
 
-- This boilerplate is intentionally minimal so you can shape it as you like.
-- You may want to:
-  - Replace `eval(...)` parsing with proper JSON parsing for safety.
-  - Add error handling and timeouts around Bedrock/Pinecone calls.
-  - Introduce retry logic and circuit breakers for production use.
-  - Add logging and correlation IDs for observability.
+### Prerequisites
+
+- **AWS Account** with Bedrock access enabled
+- **AWS CLI** configured (`aws configure`)
+- **AWS SAM CLI** installed (`sam --version`)
+- **Pinecone Account** with API key
+- **Python 3.11+** for local testing
+
+### One-Command Deployment
+
+```bash
+cd /Volumes/SatyBkup/projects/FARMER-POC/farmer-poc-rag-lambda
+
+# Deploy everything automatically
+./deploy.sh
+```
+
+**During deployment, provide:**
+- Stack Name: `farmer-rag-lambda`
+- Region: `ap-south-1`
+- PineconeApiKey: Your Pinecone API key
+- OpenAIApiKey: (Optional) For Odia support
+
+### Manual Deployment
+
+```bash
+# Validate template
+sam validate --template template-voice.yaml
+
+# Build application
+sam build --use-container
+
+# Deploy with guidance
+sam deploy --guided
+```
+
+### Post-Deployment
+
+```bash
+# Get all endpoints
+cat api_endpoint.txt
+
+# Test health
+curl "$API_URL/health"
+
+# Run comprehensive tests
+./test_endpoints.sh "$API_URL"
+```
+
+### Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `AWS_REGION` | AWS region | `ap-south-1` |
+| `PINECONE_API_KEY` | Pinecone API key | `your-key-here` |
+| `PINECONE_INDEX` | Pinecone index name | `farmer-rag-index` |
+| `OPENAI_API_KEY` | OpenAI API key (optional) | `sk-...` |
 
 ---
 
-Happy building! 🚜🌾  
-If you extend this with weather APIs, multi‑agent logic, or a UI, this backend will still be a solid core to plug into.
+## 🧪 Testing
+
+### Automated Test Suite
+
+Run the comprehensive 28-test suite:
+
+```bash
+# Get API URL
+API_URL=$(cat api_endpoint.txt | grep "API Endpoint:" | cut -d' ' -f3)
+
+# Run all tests
+./test_endpoints.sh "$API_URL"
+```
+
+**Test Coverage:**
+- ✅ Swagger UI & OpenAPI spec
+- ✅ CORS configuration
+- ✅ Text Q&A endpoints (GET/POST)
+- ✅ Voice processing endpoints
+- ✅ Health checks
+- ✅ Multi-language support
+- ✅ Error handling
+- ✅ Rate limiting
+
+### Manual Testing
+
+#### Swagger UI Testing
+1. Open Swagger URL in browser
+2. Expand any endpoint
+3. Click "Try it out"
+4. Enter test data
+5. Click "Execute"
+
+#### Postman Testing
+```bash
+# Import OpenAPI spec
+# File → Import → Link
+# Paste: https://your-api-url/openapi.json
+```
+
+#### Local Testing
+```bash
+# Start local server (no Docker needed)
+python -c "
+from src.swagger_handler import swagger_ui_handler, openapi_spec_handler
+import json
+
+# Test Swagger UI
+result = swagger_ui_handler({}, {})
+print('Swagger UI Status:', result['statusCode'])
+
+# Test OpenAPI spec
+result = openapi_spec_handler({}, {})
+spec = json.loads(result['body'])
+print('OpenAPI Version:', spec['openapi'])
+print('Endpoints:', len(spec['paths']))
+"
+```
+
+---
+
+## 💻 Local Development
+
+### Project Structure
+
+```
+farmer-poc-rag-lambda/
+├── src/
+│   ├── handler.py              # Main Lambda handler
+│   ├── swagger_handler.py      # Swagger UI + OpenAPI spec
+│   ├── config.py               # Configuration management
+│   ├── requirements.txt        # Python dependencies
+│   ├── embeddings/
+│   │   ├── embed.py            # AWS Bedrock embeddings
+│   │   └── pinecone_client.py  # Pinecone vector operations
+│   ├── ingestion/
+│   │   ├── load_dataset.py     # CSV data loading
+│   │   └── process_csv.py      # Data preprocessing
+│   ├── llm/
+│   │   └── bedrock_client.py   # AWS Bedrock LLM calls
+│   ├── rag/
+│   │   ├── retrieve.py         # Vector search & retrieval
+│   │   └── prompt.py           # RAG prompt construction
+│   ├── utils/
+│   │   └── logger.py           # Logging utilities
+│   └── voice/
+│       ├── handlers.py         # Voice endpoint handlers
+│       ├── config.py           # Voice configuration
+│       ├── rate_limiter.py     # Rate limiting
+│       ├── s3_manager.py       # S3 operations
+│       ├── asr/
+│       │   ├── router.py       # ASR routing logic
+│       │   ├── transcribe_client.py # AWS Transcribe
+│       │   └── whisper_client.py    # OpenAI Whisper
+│       └── tts/
+│           ├── router.py       # TTS routing logic
+│           ├── openai_client.py     # OpenAI TTS
+│           └── polly_client.py      # AWS Polly
+├── data/
+│   └── farmer_dataset.csv      # Training dataset
+├── docs/
+│   └── VOICE_AI_ARCHITECTURE.md # Voice architecture
+├── template-voice.yaml         # CloudFormation template
+├── deploy.sh                   # Deployment script
+├── test_endpoints.sh           # Test suite
+└── README.md                   # This file
+```
+
+### Setup Development Environment
+
+```bash
+# Clone or navigate to project
+cd /Volumes/SatyBkup/projects/FARMER-POC/farmer-poc-rag-lambda
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r src/requirements.txt
+
+# Setup Pinecone (one-time)
+python setup_pinecone.py
+```
+
+### Local Testing
+
+```bash
+# Test individual functions
+python test_api.py
+
+# Test voice endpoints locally
+python test_voice_local.py
+
+# Test with Swagger UI locally
+python -c "
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from src.swagger_handler import swagger_ui_handler
+
+class TestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/':
+            result = swagger_ui_handler({}, {})
+            self.send_response(result['statusCode'])
+            self.end_headers()
+            self.wfile.write(result['body'].encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+print('Starting local server on http://localhost:3000')
+HTTPServer(('localhost', 3000), TestHandler).serve_forever()
+"
+```
+
+### Data Ingestion
+
+```bash
+# Process and upload dataset to Pinecone
+python -c "
+from src.ingestion.load_dataset import load_local_dataset
+from src.ingestion.process_csv import prepare_documents
+from src.embeddings.embed import embed_text
+from src.embeddings.pinecone_client import store_embedding
+
+# Load and process data
+df = load_local_dataset('data/farmer_dataset.csv')
+docs = prepare_documents(df)
+
+# Upload to Pinecone
+for doc in docs:
+    vec = embed_text(doc['text'])
+    store_embedding(doc['id'], vec, doc['metadata'])
+    print(f'Uploaded: {doc[\"id\"]}')
+"
+```
+
+---
+
+## ⚙️ Configuration
+
+### AWS Services Configuration
+
+#### Bedrock Models
+```yaml
+# In template-voice.yaml
+LLM_MODEL: anthropic.claude-3-haiku-20240307-v1:0
+EMBED_MODEL: amazon.titan-embed-text-v2
+```
+
+#### Pinecone Setup
+```python
+# Index configuration
+INDEX_NAME = "farmer-rag-index"
+DIMENSION = 1536  # Titan embedding dimension
+METRIC = "cosine"
+```
+
+#### S3 Configuration
+```yaml
+# Audio storage bucket
+VoiceAudioBucket:
+  Type: AWS::S3::Bucket
+  Properties:
+    BucketName: farmer-audio-bucket
+    CorsConfiguration:
+      CorsRules:
+        - AllowedOrigins: ['*']
+          AllowedMethods: [GET, PUT, POST]
+          AllowedHeaders: ['*']
+```
+
+### Rate Limiting
+
+```python
+# DynamoDB table for rate limiting
+RateLimitTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: farmer-rate-limits
+    AttributeDefinitions:
+      - AttributeName: session_id
+        AttributeType: S
+    KeySchema:
+      - AttributeName: session_id
+        KeyType: HASH
+    BillingMode: PAY_PER_REQUEST
+```
+
+### CORS Configuration
+
+```yaml
+# API Gateway CORS
+Globals:
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS,PUT,DELETE'"
+      AllowHeaders: "'Content-Type,X-Session-Id,X-Language,Authorization'"
+      AllowOrigin: "'*'"
+      MaxAge: "'86400'"
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### Deployment Fails
+```bash
+# Check AWS credentials
+aws sts get-caller-identity
+
+# Validate CloudFormation template
+sam validate --template template-voice.yaml
+
+# Check CloudFormation events
+aws cloudformation describe-stack-events --stack-name farmer-rag-lambda
+```
+
+#### API Returns Errors
+```bash
+# Check Lambda logs
+aws logs tail /aws/lambda/farmer-rag-lambda-AskLambda --follow
+
+# Test health endpoint
+curl "$API_URL/health"
+
+# Check CORS headers
+curl -i -X OPTIONS "$API_URL/" \
+  -H "Access-Control-Request-Method: POST"
+```
+
+#### Voice Endpoints Fail
+```bash
+# Check S3 permissions
+aws s3 ls s3://farmer-audio-bucket/
+
+# Verify Pinecone connection
+python -c "from src.embeddings.pinecone_client import test_connection; test_connection()"
+
+# Check OpenAI key (if using Odia)
+echo $OPENAI_API_KEY
+```
+
+#### Rate Limiting Issues
+```bash
+# Check DynamoDB table
+aws dynamodb scan --table-name farmer-rate-limits
+
+# Clear rate limits (development only)
+aws dynamodb delete-table --table-name farmer-rate-limits
+```
+
+### Performance Optimization
+
+#### Lambda Memory/Timeout
+```yaml
+# In template-voice.yaml
+AskLambda:
+  Properties:
+    MemorySize: 2048  # Increase for better performance
+    Timeout: 30       # Increase for complex queries
+```
+
+#### CloudWatch Monitoring
+```bash
+# View Lambda metrics
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/Lambda \
+  --metric-name Duration \
+  --dimensions Name=FunctionName,Value=farmer-rag-lambda-AskLambda \
+  --start-time 2024-01-01T00:00:00Z \
+  --end-time 2024-01-02T00:00:00Z \
+  --period 3600 \
+  --statistics Average
+```
+
+### Logs and Debugging
+
+```bash
+# View all Lambda log groups
+aws logs describe-log-groups --query 'logGroups[*].logGroupName' | grep farmer
+
+# Tail specific function logs
+aws logs tail /aws/lambda/farmer-rag-lambda-AskLambda --follow
+
+# Filter for errors
+aws logs filter-log-events \
+  --log-group-name "/aws/lambda/farmer-rag-lambda-AskLambda" \
+  --filter-pattern "ERROR"
+```
+
+---
+
+## 📚 Documentation Files
+
+| File | Description |
+|------|-------------|
+| `AWS_DEPLOYMENT_GUIDE.md` | Complete deployment instructions |
+| `QUICK_REFERENCE.md` | Fast command reference |
+| `TEST_RESULTS_REFERENCE.md` | Expected test outputs |
+| `SWAGGER_IMPLEMENTATION_SUMMARY.md` | Technical implementation details |
+| `DEPLOYMENT_CHECKLIST.md` | Pre/post deployment checklist |
+| `ARCHITECTURE.md` | System architecture diagrams |
+| `IMPLEMENTATION_SUMMARY.md` | What was implemented |
+| `SETUP_COMPLETE.md` | Setup verification |
+
+---
+
+## 🤝 Contributing
+
+### Development Workflow
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/your-feature`
+3. **Make** your changes
+4. **Test** locally: `./test_endpoints.sh`
+5. **Commit** changes: `git commit -am 'Add new feature'`
+6. **Push** to branch: `git push origin feature/your-feature`
+7. **Create** Pull Request
+
+### Code Standards
+
+- **Python**: PEP 8 style, type hints recommended
+- **AWS SAM**: Follow serverless best practices
+- **Documentation**: Keep README and docs updated
+- **Testing**: Add tests for new features
+
+### Adding New Endpoints
+
+1. Add handler function in appropriate module
+2. Update `template-voice.yaml` with new Lambda function
+3. Add API Gateway route
+4. Update OpenAPI spec in `swagger_handler.py`
+5. Add tests to `test_endpoints.sh`
+6. Update documentation
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **AWS** for Bedrock, Lambda, API Gateway, and other services
+- **Pinecone** for vector database capabilities
+- **OpenAI** for Odia language support
+- **Swagger** for API documentation tools
+
+---
+
+## 📞 Support
+
+For issues or questions:
+
+1. **Check the docs**: See troubleshooting section above
+2. **Review logs**: Use CloudWatch or local testing
+3. **Test locally**: Use the provided test scripts
+4. **Check GitHub Issues**: Search existing issues
+5. **Create Issue**: For new problems with reproduction steps
+
+---
+
+**Happy farming with AI! 🚜🌾**
+
+*Built with ❤️ using AWS Serverless technologies*

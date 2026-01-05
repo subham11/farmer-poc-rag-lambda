@@ -1,0 +1,220 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                  FARMER RAG BACKEND - SWAGGER UI                          ║
+║                        QUICK START GUIDE                                  ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+✅ IMPLEMENTATION COMPLETE!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your backend now has a complete Swagger UI for testing all endpoints!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📦 WHAT WAS ADDED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NEW FILES (7):
+  ✓ src/swagger_handler.py          - Swagger UI & OpenAPI generator
+  ✓ SWAGGER_SETUP.md                - Complete setup guide
+  ✓ DEPLOYMENT_GUIDE.md             - Step-by-step deployment
+  ✓ ARCHITECTURE.md                 - System design diagrams
+  ✓ IMPLEMENTATION_SUMMARY.md       - Overview & features
+  ✓ SETUP_COMPLETE.md               - Quick setup checklist
+  ✓ test_with_swagger.sh            - curl examples
+  ✓ postman_collection.json         - Postman pre-configured
+
+UPDATED FILES (3):
+  ✓ template-voice.yaml             - Added Swagger Lambda functions
+  ✓ src/requirements.txt            - Added flask & flask-cors
+  ✓ README.md                       - Added Swagger documentation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 3-STEP QUICK START
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 1: BUILD
+  $ sam build
+
+STEP 2: DEPLOY
+  $ sam deploy --guided
+  
+  When prompted:
+    - Stack Name: farmer-rag-voice-stack (or preferred name)
+    - Region: ap-south-1
+    - PineconeApiKey: [paste your key]
+    - OpenAIApiKey: [optional, press Enter to skip]
+
+STEP 3: TEST
+  After deployment, you'll see:
+  
+    SwaggerUIEndpoint: https://{api-id}.execute-api.ap-south-1.amazonaws.com/Prod/
+  
+  → Open this URL in your browser
+  → Swagger UI loads with all endpoints
+  → Click any endpoint → "Try it out" → Test!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 WHAT YOU GET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Interactive Swagger UI - Test endpoints from browser
+✓ Auto-generated Documentation - OpenAPI 3.0 spec
+✓ Live Request Testing - Real responses
+✓ Schema Validation - Request/response formats
+✓ 8+ Endpoints - All documented with examples
+✓ Voice Support - ASR, TTS, full pipeline
+✓ Postman Ready - Pre-configured collection
+
+ENDPOINTS AVAILABLE:
+  • GET  /ask?query=...         - Ask text question
+  • POST /ask                   - Ask with JSON
+  • POST /voice/upload-url      - Upload audio
+  • POST /voice/asr             - Speech-to-Text
+  • POST /voice/tts             - Text-to-Speech
+  • POST /voice/ask             - Full voice pipeline
+  • GET  /health                - Health check
+  • GET  /openapi.json          - API specification
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📚 DOCUMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Start with these (in order):
+  1. SETUP_COMPLETE.md (5 min)         ← Start here!
+  2. IMPLEMENTATION_SUMMARY.md (5 min) ← Features overview
+  3. SWAGGER_SETUP.md (15 min)         ← Testing guide
+  4. DEPLOYMENT_GUIDE.md (20 min)      ← Detailed deployment
+  5. ARCHITECTURE.md (reference)       ← System design
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧪 TESTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+METHOD 1: Swagger UI (Recommended)
+  1. Open browser: https://{api-id}.execute-api.ap-south-1.amazonaws.com/Prod/
+  2. Click any endpoint section
+  3. Click "Try it out"
+  4. Enter test data
+  5. Click "Execute"
+  6. View response
+
+METHOD 2: curl
+  $ curl -X POST https://YOUR_API/ask \
+    -H "Content-Type: application/json" \
+    -d '{"question": "What is the best time to plant rice?"}'
+
+METHOD 3: Postman
+  → Import openapi.json or postman_collection.json
+  → Pre-configured endpoints ready to use
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✨ KEY FEATURES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ NO TOOLS NEEDED - Test from browser
+✓ LIVE RESPONSES - See results immediately
+✓ SCHEMA VALIDATION - Auto-validate requests
+✓ LANGUAGE SUPPORT - English, Hindi, Odia
+✓ VOICE ENABLED - ASR + TTS endpoints
+✓ TEAM READY - Share URL with collaborators
+✓ WELL DOCUMENTED - 5 comprehensive guides
+✓ POSTMAN READY - Pre-configured collection
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔗 ENDPOINTS SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RAG - Text Q&A
+  GET  /ask?query=...               Ask with parameter
+  POST /ask                         Ask with JSON body
+
+Voice - Audio Management
+  POST /voice/upload-url            Get S3 upload URL
+  POST /voice/asr                   Speech-to-Text
+  POST /voice/tts                   Text-to-Speech
+  POST /voice/ask                   Full voice pipeline
+
+Utilities
+  GET  /health                      Health check
+  GET  /voice/rate-limit-status     Rate limit info
+
+Documentation
+  GET  /                            Swagger UI
+  GET  /openapi.json                OpenAPI spec
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ QUICK COMMANDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Build
+$ sam build
+
+# Deploy
+$ sam deploy --guided
+
+# Redeploy (after changes)
+$ sam build && sam deploy
+
+# View logs
+$ aws logs tail /aws/lambda/farmer-rag-voice-stack --follow
+
+# Test with curl
+$ curl -X POST https://YOUR_API/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Your question"}'
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 VERIFICATION CHECKLIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After deployment, verify:
+
+  ☐ Swagger UI loads in browser
+  ☐ Can see all endpoint sections
+  ☐ Can click "Try it out" on endpoints
+  ☐ Can submit test requests
+  ☐ Get responses back
+  ☐ OpenAPI spec available at /openapi.json
+  ☐ All endpoints documented with examples
+  ☐ Request/response schemas visible
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 NEXT STEPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Deploy your backend (3-5 minutes)
+2. Test in Swagger UI (5 minutes)
+3. Integrate with frontend
+4. Monitor with CloudWatch
+5. Optimize based on metrics
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 TIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Start with Swagger UI - most user-friendly
+✓ Use provided examples - copy-paste to test
+✓ Check headers - some endpoints need X-Language
+✓ Read descriptions - explain what each endpoint does
+✓ View schemas - bottom of page shows data models
+✓ Test sequences - upload audio before testing ASR
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎉 YOU'RE ALL SET!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your Farmer RAG backend is ready with:
+  ✅ Complete Swagger UI
+  ✅ Auto-generated documentation
+  ✅ Live endpoint testing
+  ✅ 8+ documented endpoints
+  ✅ Voice support (ASR/TTS)
+  ✅ Comprehensive guides
+  ✅ Postman collection
+
+→ Run: sam build && sam deploy --guided
+→ Then open the Swagger UI URL in your browser
+→ Start testing!
+
+Questions? Check SWAGGER_SETUP.md for detailed guide.
+
+═════════════════════════════════════════════════════════════════════════════

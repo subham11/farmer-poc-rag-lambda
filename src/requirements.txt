@@ -2,3 +2,5 @@ boto3
 pinecone
 pandas<2.2
 numpy<2
+flask
+flask-cors

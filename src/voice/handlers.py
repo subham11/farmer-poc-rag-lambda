@@ -21,6 +21,7 @@ from .rate_limiter import rate_limiter, RateLimitExceeded
 from .s3_manager import s3_manager
 from .asr.router import asr_router
 from .tts.router import tts_router
+from ..agents.orchestrator import orchestrate_query
 
 # Setup logger (compatible with both local and Lambda)
 logger = logging.getLogger(__name__)
@@ -153,7 +154,7 @@ def asr_handler(event: dict, context: Any) -> dict:
     Body:
         {
             "s3_key": "uploads/session123/audio.wav",
-            "query_rag": true  // Optional: also query RAG pipeline
+            "query_agents": true  // Optional: also run multi-agent analysis
         }
     
     Returns:
@@ -161,7 +162,7 @@ def asr_handler(event: dict, context: Any) -> dict:
             "text": "Transcribed text",
             "provider": "transcribe" | "whisper",
             "language": "en" | "hi" | "or",
-            "rag_response": "..." // If query_rag=true
+            "agent_response": {...} // If query_agents=true
         }
     """
     try:
@@ -171,7 +172,7 @@ def asr_handler(event: dict, context: Any) -> dict:
         # Parse body
         body = json.loads(event.get("body", "{}"))
         s3_key = body.get("s3_key")
-        query_rag = body.get("query_rag", False)
+        query_agents = body.get("query_agents", False)
         
         if not s3_key:
             return _response(400, {"error": "s3_key is required"})
@@ -202,10 +203,10 @@ def asr_handler(event: dict, context: Any) -> dict:
             "reset_in_seconds": reset_in,
         }
         
-        # Optionally query RAG pipeline
-        if query_rag and result.get("text"):
-            rag_response = _query_rag_pipeline(result["text"])
-            result["rag_response"] = rag_response
+        # Optionally run multi-agent analysis
+        if query_agents and result.get("text"):
+            agent_response = orchestrate_query(result["text"])
+            result["agent_response"] = agent_response
         
         return _response(200, result)
         

@@ -9,6 +9,26 @@ Parameters:
     NoEcho: true
 
 Resources:
+  # DynamoDB Table for storing learned locations and soil profiles
+  FarmerLearningTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: farmer-learning-db
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
   FarmerRAGLambda:
     Type: AWS::Serverless::Function
     Properties:
@@ -23,6 +43,7 @@ Resources:
           LLM_MODEL: anthropic.claude-3-haiku-20240307-v1:0
           PINECONE_API_KEY: !Ref PineconeApiKey
           PINECONE_INDEX: farmer-rag-index
+          LEARNING_TABLE: !Ref FarmerLearningTable
       Policies:
         - AmazonS3ReadOnlyAccess
         - Statement:
@@ -31,6 +52,14 @@ Resources:
                 - bedrock:InvokeModel
                 - bedrock:InvokeModelWithResponseStream
               Resource: "*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+              Resource: !GetAtt FarmerLearningTable.Arn
       Events:
         ApiRequest:
           Type: Api
@@ -42,3 +71,6 @@ Outputs:
   ApiEndpoint:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/ask"
+  LearningTable:
+    Description: "DynamoDB table for learned data"
+    Value: !Ref FarmerLearningTable
